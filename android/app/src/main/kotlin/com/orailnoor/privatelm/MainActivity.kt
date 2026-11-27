@@ -35,6 +35,8 @@ class MainActivity : FlutterActivity() {
     private var importChannel: MethodChannel? = null
     private val overlayChannelName = "com.orailnoor.privatelm/overlay"
     private var overlayChannel: MethodChannel? = null
+    private val agentChannelName = "com.orailnoor.privatelm/agent"
+    private var agentChannel: MethodChannel? = null
     private var pendingImportResult: MethodChannel.Result? = null
     private var pendingModelsDir: String? = null
     private val monitoredInAppDownloads = ConcurrentHashMap.newKeySet<Long>()
@@ -280,6 +282,59 @@ class MainActivity : FlutterActivity() {
                     result.success(null)
                 }
                 else -> result.notImplemented()
+            }
+        }
+
+        agentChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, agentChannelName)
+        agentChannel?.setMethodCallHandler { call, result ->
+            // Wireless debugging does not need the accessibility service.
+            if (call.method == "agentWirelessStatus") {
+                result.success(WirelessDebug.status(this))
+                return@setMethodCallHandler
+            }
+            if (call.method == "agentWirelessShell") {
+                val command = call.argument<String>("command").orEmpty()
+                thread {
+                    val output = WirelessDebug.runShell(command)
+                    mainHandler.post { result.success(output) }
+                }
+                return@setMethodCallHandler
+            }
+            val service = PrivateLmAccessibilityService.instance
+            if (service == null) {
+                result.error(
+                    "SERVICE_NOT_ENABLED",
+                    "PrivateLM accessibility service is not enabled.",
+                    null
+                )
+                return@setMethodCallHandler
+            }
+            try {
+                when (call.method) {
+                    "agentTap" -> {
+                        val x = call.argument<Number>("x")?.toFloat() ?: 0f
+                        val y = call.argument<Number>("y")?.toFloat() ?: 0f
+                        result.success(service.tap(x, y))
+                    }
+                    "agentSwipe" -> {
+                        val x1 = call.argument<Number>("x1")?.toFloat() ?: 0f
+                        val y1 = call.argument<Number>("y1")?.toFloat() ?: 0f
+                        val x2 = call.argument<Number>("x2")?.toFloat() ?: 0f
+                        val y2 = call.argument<Number>("y2")?.toFloat() ?: 0f
+                        result.success(service.swipe(x1, y1, x2, y2, 500))
+                    }
+                    "agentBack" -> result.success(service.back())
+                    "agentHome" -> result.success(service.home())
+                    "agentRecents" -> result.success(service.recents())
+                    "agentClickText" -> {
+                        val text = call.argument<String>("text").orEmpty()
+                        result.success(if (text.isEmpty()) false else service.clickText(text))
+                    }
+                    "agentDumpScreen" -> result.success(service.dumpScreen())
+                    else -> result.notImplemented()
+                }
+            } catch (e: Exception) {
+                result.error("AGENT_FAILED", e.message ?: e.toString(), null)
             }
         }
 

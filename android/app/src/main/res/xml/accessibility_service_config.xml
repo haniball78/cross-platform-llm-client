@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Accessibility service config for PrivateLM. The service performs no
-     automation; it only needs to be listed so the user can enable it in
-     system Settings. -->
+<!-- Accessibility service config for PrivateLM. The service only acts
+     when the user asks the chat model to (tap / swipe / click text /
+     back / home / screen dump); it never acts by itself. -->
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
     android:packageNames="com.orailnoor.privatelm"
     android:accessibilityEventTypes="typeAllMask"
