@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 
 import '../controllers/server_controller.dart';
+import '../services/cluster_service.dart';
 import '../core/ui.dart';
 import '../core/haptics.dart';
 
@@ -116,6 +117,53 @@ class ServerView extends GetView<ServerController> {
               ),
             ),
 
+            // ── Wireless debugging ──
+            // Connect a PC to this phone over Wi-Fi, with no cable.
+            // The phone's Wi-Fi address comes from ClusterService,
+            // which already tracks it for the phone cluster.
+            const SectionHeader('Wireless debugging'),
+            AppGroup(children: [
+              AppRow(
+                icon: Icons.wifi_rounded,
+                title: 'Wi-Fi address',
+                subtitle: _wifiIp ??
+                    'Connect this phone to Wi-Fi first',
+                trailing: _CopyButton(
+                    text: _wifiIp, tooltip: 'Copy Wi-Fi address'),
+              ),
+              if (allowNetwork && _wifiIp != null)
+                _UrlRow(
+                    label: 'PC URL',
+                    url:
+                        'http://${_wifiIp!}:${ServerController.port}/v1'),
+              if (!allowNetwork)
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(16, 4, 16, 12),
+                  child: Text(
+                      'Turn on "Allow network access" above to reach this server from your PC. The API key is required.'),
+                ),
+              AppRow(
+                icon: Icons.refresh_rounded,
+                title: 'Refresh Wi-Fi address',
+                subtitle: 'Re-reads the address if the phone changed network',
+                onTap: () {
+                  if (Get.isRegistered<ClusterService>()) {
+                    Get.find<ClusterService>().refreshWifiAddress();
+                  }
+                },
+              ),
+            ]),
+            const SizedBox(height: 12),
+            _CodeBlock(
+              title: 'Connect from a PC',
+              lang: 'adb',
+              code: '1. On this phone: Settings → Developer options → '
+                  'Wireless debugging → ON\n'
+                  '2. Note the IP and port shown there\n'
+                  '3. On the PC: adb connect ${_wifiIp ?? '<wifi-ip>'}:<port>\n'
+                  '4. Use the PC URL above with your API key',
+            ),
+
             // ── Endpoints ──
             if (isRunning) ...[
               const SectionHeader('Endpoints'),
@@ -156,6 +204,13 @@ class ServerView extends GetView<ServerController> {
         );
       }),
     );
+  }
+
+  /// This phone's Wi-Fi address, or null when it is not on Wi-Fi or the
+  /// cluster service is not registered (web builds).
+  String? get _wifiIp {
+    if (!Get.isRegistered<ClusterService>()) return null;
+    return Get.find<ClusterService>().wifiAddress.value;
   }
 
   String _authHeader() {
