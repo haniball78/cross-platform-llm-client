@@ -92,11 +92,23 @@ class BubbleService : Service() {
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
         }
+        val stopIntent = Intent(this, BubbleService::class.java).apply {
+            action = ACTION_STOP
+        }
+        val stopPending = PendingIntent.getService(
+            this, 1, stopIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
         return Notification.Builder(this, channelId)
             .setContentTitle("PrivateLM bubble")
             .setContentText("Tap the bubble to open PrivateLM")
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .apply { if (pending != null) setContentIntent(pending) }
+            .addAction(
+                android.R.drawable.ic_menu_close_clear_cancel,
+                "Stop bubble",
+                stopPending
+            )
             .build()
     }
 
@@ -120,16 +132,19 @@ class BubbleService : Service() {
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.TOP or Gravity.START
-            x = 0
-            y = dp(300)
+            val prefs = getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            x = prefs.getInt(KEY_X, 0)
+            y = prefs.getInt(KEY_Y, dp(300))
         }
         params = layoutParams
+        clampParams()
         bubble = view
         view.setOnTouchListener(BubbleTouchListener())
         try {
             wm.addView(view, layoutParams)
         } catch (e: Exception) {
             Log.w(TAG, "addView failed", e)
+            isRunning = false
             stopSelf()
         }
     }
@@ -155,6 +170,38 @@ class BubbleService : Service() {
         TypedValue.applyDimension(
             TypedValue.COMPLEX_UNIT_DIP, value.toFloat(), resources.displayMetrics
         ).toInt()
+
+    private fun displaySize(): Pair<Int, Int> {
+        val wm = windowManager ?: return 0 to 0
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val bounds = wm.currentWindowMetrics.bounds
+            bounds.width() to bounds.height()
+        } else {
+            @Suppress("DEPRECATION")
+            val size = android.graphics.Point()
+            @Suppress("DEPRECATION")
+            wm.defaultDisplay.getSize(size)
+            size.x to size.y
+        }
+    }
+
+    /** Keeps the bubble fully on screen (also clamps a restored position). */
+    private fun clampParams() {
+        val p = params ?: return
+        val (w, h) = displaySize()
+        val bw = bubble?.width?.takeIf { it > 0 } ?: dp(60)
+        val bh = bubble?.height?.takeIf { it > 0 } ?: dp(60)
+        p.x = p.x.coerceIn(0, (w - bw).coerceAtLeast(0))
+        p.y = p.y.coerceIn(0, (h - bh).coerceAtLeast(0))
+    }
+
+    private fun savePosition() {
+        val p = params ?: return
+        getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .putInt(KEY_X, p.x)
+            .putInt(KEY_Y, p.y)
+            .apply()
+    }
 
     private fun openApp() {
         val intent = packageManager.getLaunchIntentForPackage(packageName)
@@ -195,12 +242,14 @@ class BubbleService : Service() {
                     if (moved) {
                         params?.x = startX + dx
                         params?.y = startY + dy
+                        clampParams()
                         bubble?.let { windowManager?.updateViewLayout(it, params) }
                     }
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                     longPressRunnable?.let { handler.removeCallbacks(it) }
                     longPressRunnable = null
+                    savePosition()
                     val held = System.currentTimeMillis() - downTime
                     if (!moved && held < LONG_PRESS_MS) openApp()
                 }
@@ -216,6 +265,10 @@ class BubbleService : Service() {
         private const val DRAG_PX = 15
 
         const val ACTION_STOP = "com.orailnoor.privatelm.STOP_BUBBLE"
+
+        private const val PREFS = "privatelm_bubble"
+        private const val KEY_X = "bubble_x"
+        private const val KEY_Y = "bubble_y"
 
         /** True while the local API server is serving a model. Set from Dart. */
         @Volatile

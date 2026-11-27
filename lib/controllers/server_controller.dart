@@ -12,6 +12,7 @@ import '../services/hive_service.dart';
 import '../services/inference_service.dart';
 import '../services/cluster_service.dart';
 import '../services/openai_server_service.dart';
+import '../services/overlay_service.dart';
 
 class ServerController extends GetxController {
   final HiveService _hive = Get.find<HiveService>();
@@ -68,6 +69,14 @@ class ServerController extends GetxController {
     }
   }
 
+  /// Keeps the floating bubble's server dot in sync. No-op when the
+  /// overlay feature is not registered (e.g. non-Android builds).
+  void _notifyBubble(bool running) {
+    if (Get.isRegistered<OverlayService>()) {
+      unawaited(Get.find<OverlayService>().setServerRunning(running));
+    }
+  }
+
   Future<void> startServer() async {
     if (isRunning.value || isStarting.value) return;
     lastError.value = null;
@@ -91,6 +100,7 @@ class ServerController extends GetxController {
       );
       localUrl.value = _server.localUrl;
       isRunning.value = true;
+      _notifyBubble(true);
       serverStatus.value = 'Server running';
       if (allowNetwork.value && Get.isRegistered<ClusterService>()) {
         Get.find<ClusterService>().serving.value = true;
@@ -100,6 +110,7 @@ class ServerController extends GetxController {
       serverStatus.value = 'Server failed';
       Get.find<AppLogService>().error('API server failed', details: e);
       showToast('Server failed', '$e', tone: ToastTone.error);
+      _notifyBubble(false);
     } finally {
       isStarting.value = false;
     }
@@ -109,6 +120,7 @@ class ServerController extends GetxController {
     isStarting.value = false;
     await _server.stop();
     isRunning.value = false;
+    _notifyBubble(false);
     localUrl.value = null;
     serverStatus.value = 'Server stopped';
     if (Get.isRegistered<ClusterService>()) {

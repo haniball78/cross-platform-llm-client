@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 
 import '../controllers/server_controller.dart';
@@ -8,8 +11,29 @@ import '../controllers/server_controller.dart';
 /// All platform work lives in MainActivity / BubbleService behind one
 /// MethodChannel; this service only forwards calls and keeps the granted /
 /// running state as observables for Settings.
-class OverlayService extends GetxService {
+class OverlayService extends GetxService with WidgetsBindingObserver {
   static const _channel = MethodChannel('com.orailnoor.privatelm/overlay');
+
+  @override
+  void onInit() {
+    super.onInit();
+    // The overlay-permission row must re-read the granted flag when the
+    // user comes back from the system Settings screen, where the grant
+    // actually happens. refreshStatus() right after opening Settings
+    // runs too early and still reads "not granted".
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) unawaited(refreshStatus());
+  }
+
+  @override
+  void onClose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.onClose();
+  }
 
   /// Whether the user granted "Draw over other apps" to PrivateLM.
   final canDrawOverlays = false.obs;
@@ -69,8 +93,8 @@ class OverlayService extends GetxService {
   }
 
   /// Tells the bubble whether the local API server is serving, so its
-  /// dot turns green. Called with the server state when the bubble starts;
-  /// the server page calls it again whenever the server starts or stops.
+  /// dot turns green. Called with the server state when the bubble starts,
+  /// and by ServerController whenever the server starts or stops.
   Future<void> setServerRunning(bool running) async {
     try {
       await _channel.invokeMethod('setServerRunning', {'running': running});

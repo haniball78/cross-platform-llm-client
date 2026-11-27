@@ -272,6 +272,11 @@ class MainActivity : FlutterActivity() {
                 "setServerRunning" -> {
                     BubbleService.serverRunning =
                         call.argument<Boolean>("running") ?: false
+                    if (BubbleService.isRunning) {
+                        // Nudge the service so onStartCommand repaints the
+                        // bubble dot now instead of on the next bubble start.
+                        startService(Intent(this, BubbleService::class.java))
+                    }
                     result.success(null)
                 }
                 else -> result.notImplemented()
