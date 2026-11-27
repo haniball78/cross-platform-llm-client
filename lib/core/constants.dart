@@ -9,6 +9,11 @@ class AppConstants {
 
   // Settings Keys
   static const String keyInferenceMode = 'inference_mode'; // 'local' or 'cloud'
+  static const String keyAgentBrainMode =
+      'agent_brain_mode'; // 'both' | 'local' | 'cloud'
+  static const String keyChatToolsEnabled = 'chat_tools_enabled';
+  static const String keyWirelessPairPort = 'wireless_pair_port';
+  static const String keyWirelessPairCode = 'wireless_pair_code';
   static const String keyCloudProvider =
       'cloud_provider'; // 'openai', 'anthropic', 'google', 'kimi'
   static const String keyOpenaiKey = 'openai_api_key';

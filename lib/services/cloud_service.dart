@@ -10,9 +10,15 @@ import 'app_log_service.dart';
 class CloudService extends GetxService {
   final HiveService _hive = Get.find<HiveService>();
 
+  /// One-call provider override for the agent brain. Null means the
+  /// provider selected in Settings. Never persisted.
+  String? _providerOverride;
+
   String get _provider =>
-      _hive.getSetting(AppConstants.keyCloudProvider, defaultValue: 'openrouter') ??
-      'openrouter';
+      _providerOverride ??
+      (_hive.getSetting(AppConstants.keyCloudProvider,
+              defaultValue: 'openrouter') ??
+          'openrouter');
 
   String get _apiKey {
     switch (_provider) {
@@ -88,6 +94,32 @@ class CloudService extends GetxService {
       return _apiKey.isNotEmpty && _model.isNotEmpty && baseUrl.isNotEmpty;
     }
     return _apiKey.isNotEmpty;
+  }
+
+  /// The cloud provider the agent brain escalates to: Groq when its key
+  /// is saved, otherwise the provider selected in Settings. Null when
+  /// neither has a saved key — the agent then reports that plainly.
+  String? get agentCloudProvider {
+    final groqKey = _hive.getSetting(AppConstants.keyGroqKey) ?? '';
+    if (groqKey.isNotEmpty) return 'groq';
+    return isConfigured ? _provider : null;
+  }
+
+  /// Sends one message with [provider] instead of the provider selected
+  /// in Settings, without changing the saved setting. Used by the agent
+  /// brain's cloud escalation.
+  Future<String> sendMessageAs(
+    String provider, {
+    required List<Map<String, String>> messages,
+    int? maxTokens,
+  }) async {
+    final previous = _providerOverride;
+    _providerOverride = provider;
+    try {
+      return await sendMessage(messages: messages, maxTokens: maxTokens);
+    } finally {
+      _providerOverride = previous;
+    }
   }
 
   http.Client? _activeStreamClient;
