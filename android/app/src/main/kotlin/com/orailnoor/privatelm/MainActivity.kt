@@ -289,15 +289,31 @@ class MainActivity : FlutterActivity() {
         agentChannel?.setMethodCallHandler { call, result ->
             // Wireless debugging does not need the accessibility service.
             if (call.method == "agentWirelessStatus") {
-                result.success(WirelessDebug.status(this))
+                result.success(AdbWireless.status(this))
                 return@setMethodCallHandler
             }
             if (call.method == "agentWirelessShell") {
                 val command = call.argument<String>("command").orEmpty()
+                val connectPort =
+                    (call.argument<Any>("connectPort") as? Number)?.toInt() ?: 0
                 thread {
-                    val output = WirelessDebug.runShell(command)
+                    val output = AdbWireless.shell(this, command, connectPort)
                     mainHandler.post { result.success(output) }
                 }
+                return@setMethodCallHandler
+            }
+            if (call.method == "agentWirelessPair") {
+                val port = (call.argument<Any>("port") as? Number)?.toInt() ?: 0
+                val code = call.argument<String>("code").orEmpty()
+                thread {
+                    val output = AdbWireless.pair(this, port, code)
+                    mainHandler.post { result.success(output) }
+                }
+                return@setMethodCallHandler
+            }
+            if (call.method == "agentWirelessUnpair") {
+                AdbWireless.unpair(this)
+                result.success(true)
                 return@setMethodCallHandler
             }
             val service = PrivateLmAccessibilityService.instance

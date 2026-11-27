@@ -53,8 +53,10 @@ class _AgentNotAvailable implements Exception {
 /// (1) accessibility: tap / swipe / click text / back / home / dump the
 /// screen, through the `com.orailnoor.privatelm/agent` channel;
 /// (2) wireless debugging: the phone's own wireless-debugging status,
-/// the pairing port + code the user saved, and a read-only on-device
-/// shell, all through the same `com.orailnoor.privatelm/agent` channel.
+/// the pairing port + code the user saved, and a shell through the
+/// full adb client (SPAKE2 pairing + TLS, commands as the shell user)
+/// when paired — falling back to a read-only on-device shell when not
+/// paired — all through the same `com.orailnoor.privatelm/agent` channel.
 ///
 /// The brain mode decides which model answers each tool round:
 /// 'both' (default) asks the loaded local model first and escalates to
@@ -306,10 +308,14 @@ class AgentService extends GetxService {
       '{"tool":"wirelessStatus"} — wireless debugging status: on/off, '
       'Wi-Fi IP, port, pairing;\n'
       '{"tool":"wirelessShell","command":"getprop ro.build.version.sdk"} — '
-      'runs one read-only command on this phone (getprop, settings get, '
-      'pm list, dumpsys, logcat, ip, ps). It runs as the app itself, so '
-      'privileged commands fail; if you need those, ask the user to pair '
-      'wireless debugging first.\n'
+      'runs one command on this phone. When paired it runs as the shell '
+      'user (getprop, settings get/put, pm list, dumpsys, logcat, ip, ps, '
+      'input, svc, cmd, am start); when not paired it runs a read-only '
+      'app shell and says so. If you need shell-user power and the '
+      'status says not paired, tell the user to pair from the Server view.\n'
+      'Choose the tool for the job: accessibility (tap, clickText, '
+      'dumpScreen) for anything on the screen, wirelessShell for system '
+      'commands — you decide per step.\n'
       'Tap only on coordinates from the dump. After a tool result, '
       'continue until done, then reply with your final answer as plain text.';
 
@@ -412,13 +418,13 @@ class AgentService extends GetxService {
           }
           return 'Screen:\n$dump';
         case 'wirelessStatus':
-          return wirelessStatus();
+          return await wirelessStatus();
         case 'wirelessShell':
           final command = '${call['command'] ?? ''}'.trim();
           if (command.isEmpty) {
             return 'wirelessShell failed: command is required';
           }
-          return wirelessShell(command);
+          return await wirelessShell(command);
         default:
           return 'Unknown tool "$name". Available tools: tap, clickText, '
               'swipe, back, home, recents, dumpScreen, wirelessStatus, '
@@ -434,11 +440,11 @@ class AgentService extends GetxService {
   // ── Wireless debugging (phone-only) ───────────────────────────────
 
   /// Wireless-debugging status for the model: the system toggle, the
-  /// Wi-Fi IP, the adb port when the system exposes one, and the
-  /// pairing info the user saved in the Server view. There is no full
-  /// adb-protocol client in this build: the pairing handshake (SPAKE2 +
-  /// TLS) and shell-as-shell-user are NOT implemented yet — the
-  /// on-device shell below runs as the app itself.
+  /// Wi-Fi IP, the adb port when the system exposes one, the pairing
+  /// state, and the pairing info the user saved in the Server view.
+  /// When paired, wirelessShell runs through the full adb client as
+  /// the shell user; when not paired it falls back to the read-only
+  /// on-device shell and says so in its result.
   Future<String> wirelessStatus() async {
     final wifi = Get.isRegistered<ClusterService>()
         ? Get.find<ClusterService>().wifiAddress.value
@@ -447,12 +453,16 @@ class AgentService extends GetxService {
     buffer.writeln('- Wi-Fi IP: ${wifi ?? 'not on Wi-Fi'}');
     var toggle = 'unknown';
     var port = '';
+    var paired = false;
+    var guid = '';
     try {
       final status =
           await _channel.invokeMethod<Map>('agentWirelessStatus');
       if (status != null) {
         toggle = status['wirelessDebugging'] == true ? 'ON' : 'OFF';
         port = '${status['adbTcpPort'] ?? ''}';
+        paired = status['paired'] == true;
+        guid = '${status['guid'] ?? ''}';
       }
     } catch (_) {}
     buffer.writeln('- Wireless debugging: $toggle');
@@ -464,17 +474,52 @@ class AgentService extends GetxService {
     buffer.writeln(
       '- ADB port: ${port.isEmpty ? 'not exposed by the system (wireless debugging uses a random port — enter it in the Server view)' : port}',
     );
+    buffer.writeln(
+      '- Paired: ${paired ? 'yes (device GUID $guid) — wirelessShell runs as the shell user' : 'no — wirelessShell runs a read-only app shell until paired'}',
+    );
     buffer.writeln('- Pairing: ${wirelessPairingSummary()}');
     return buffer.toString().trim();
   }
 
-  /// Runs one read-only command on this phone, as the app itself.
-  /// The native side enforces the allowlist and the timeout; anything
-  /// else comes back as an error string.
+  /// Runs one command on this phone. When paired it goes through the
+  /// full adb client as the shell user; otherwise the native side
+  /// falls back to the read-only app shell and labels the result.
+  /// The native side enforces the allowlist and the timeout.
   Future<String> wirelessShell(String command) async {
-    final out =
-        await _callString('agentWirelessShell', {'command': command});
+    final hive =
+        Get.isRegistered<HiveService>() ? Get.find<HiveService>() : null;
+    final connectPort = int.tryParse(
+          hive?.getSetting<String>(
+                AppConstants.keyWirelessConnectPort,
+                defaultValue: '',
+              ) ??
+              '',
+        ) ??
+        0;
+    final out = await _callString('agentWirelessShell', {
+      'command': command,
+      'connectPort': connectPort,
+    });
     return out.isEmpty ? 'wirelessShell failed: no output' : out;
+  }
+
+  /// Pairs this app with the phone's own wireless debugging, using
+  /// the port + 6-digit code the user typed in the Server view.
+  /// Returns the result line to show the user.
+  Future<String> pairWireless({
+    required String port,
+    required String code,
+  }) async {
+    final p = int.tryParse(port.trim());
+    if (p == null || p < 1 || p > 65535) return 'Port must be 1–65535.';
+    if (!RegExp(r'^\d{6}$').hasMatch(code.trim())) {
+      return 'Pairing code must be the 6 digits shown on the phone.';
+    }
+    final out = await _callString('agentWirelessPair', {
+      'port': p,
+      'code': code.trim(),
+    });
+    return out.isEmpty ? 'Pairing failed: no answer from the phone.' : out;
   }
 
   /// The pairing port + code the user typed in the Server view, or a
@@ -496,9 +541,7 @@ class AgentService extends GetxService {
       return 'not saved — enter the port + 6-digit code from Developer '
           'options → Wireless debugging in the Server view';
     }
-    return 'saved (port $port, code ••••••) — the pairing handshake is '
-        'not implemented in this build yet, so the app cannot connect '
-        'as a wireless-debugging client yet';
+    return 'saved (port $port, code ••••••) — tap Pair to connect';
   }
 
   /// Saves the pairing port + 6-digit code the user typed. Returns an
@@ -522,6 +565,27 @@ class AgentService extends GetxService {
     final hive = Get.find<HiveService>();
     await hive.setSetting(AppConstants.keyWirelessPairPort, '');
     await hive.setSetting(AppConstants.keyWirelessPairCode, '');
+    await hive.setSetting(AppConstants.keyWirelessConnectPort, '');
+    try {
+      await _channel.invokeMethod('agentWirelessUnpair');
+    } catch (_) {}
+  }
+
+  /// Saves the connect port (the 'IP address & Port' shown in
+  /// Developer options → Wireless debugging), used when discovery
+  /// cannot find it. Returns an error string, or null on success.
+  Future<String?> saveWirelessConnectPort(String port) async {
+    final trimmed = port.trim();
+    if (trimmed.isEmpty) {
+      await Get.find<HiveService>()
+          .setSetting(AppConstants.keyWirelessConnectPort, '');
+      return null;
+    }
+    final p = int.tryParse(trimmed);
+    if (p == null || p < 1 || p > 65535) return 'Port must be 1–65535.';
+    await Get.find<HiveService>()
+        .setSetting(AppConstants.keyWirelessConnectPort, trimmed);
+    return null;
   }
 
   String _describeTool(Map<String, dynamic> call) {

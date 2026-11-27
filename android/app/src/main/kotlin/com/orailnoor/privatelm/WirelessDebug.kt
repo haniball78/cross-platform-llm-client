@@ -7,12 +7,11 @@ import java.util.concurrent.TimeUnit
 /**
  * On-device wireless debugging, phone-only.
  *
- * No network client, no adb protocol here: this only reads the
- * phone's own wireless-debugging state and runs read-only shell
- * commands as the app itself (Runtime.exec, app UID). The full
- * wireless-debugging client — pairing handshake (SPAKE2 + TLS) and
- * shell-as-shell-user through adbd — is NOT implemented in this build;
- * see AgentService.wirelessStatus for the honest status the model gets.
+ * Two paths live here: the full adb wireless client in
+ * [AdbWireless] (pairing handshake + shell-as-shell-user through
+ * adbd), and this file's read-only shell as the app itself
+ * (Runtime.exec, app UID), which is the fallback when the phone
+ * is not paired. [AdbWireless.shell] says which path ran.
  */
 object WirelessDebug {
 
@@ -132,6 +131,33 @@ object WirelessDebug {
         when (argv[0]) {
             "settings" -> if (argv.size < 2 || argv[1] != "get") return null
             "pm" -> if (argv.size < 2 || argv[1] != "list") return null
+            "logcat" -> return argv + "-d"
+        }
+        return argv
+    }
+
+    /**
+     * Commands the paired adb shell may run, as the shell user.
+     * Same metacharacter rules as [parseCommand], but the wider set
+     * the shell user needs: input (tap/keyevent/text), svc, cmd,
+     * settings get/put, and am start. Anything not listed — rm,
+     * reboot, su, keyguard changes — is refused by the allowlist.
+     */
+    fun parseAdbCommand(command: String): List<String>? {
+        val trimmed = command.trim()
+        if (trimmed.isEmpty() || trimmed.length > MAX_COMMAND_CHARS) return null
+        if (trimmed.any { it in forbiddenChars }) return null
+        val argv = trimmed.split(Regex("\\s+"))
+        if (argv.isEmpty()) return null
+        val allowedAdb = setOf(
+            "getprop", "settings", "pm", "dumpsys", "logcat", "ip", "ps",
+            "input", "svc", "cmd", "am"
+        )
+        if (argv[0] !in allowedAdb) return null
+        when (argv[0]) {
+            "settings" -> if (argv.size < 2 || (argv[1] != "get" && argv[1] != "put")) return null
+            "pm" -> if (argv.size < 2 || argv[1] != "list") return null
+            "am" -> if (argv.size < 2 || argv[1] != "start") return null
             "logcat" -> return argv + "-d"
         }
         return argv

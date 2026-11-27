@@ -527,6 +527,7 @@ class _WirelessPairingCard extends StatefulWidget {
 class _WirelessPairingCardState extends State<_WirelessPairingCard> {
   final _portCtrl = TextEditingController();
   final _codeCtrl = TextEditingController();
+  final _connectPortCtrl = TextEditingController();
   String? _message;
 
   AgentService? get _agent =>
@@ -547,6 +548,11 @@ class _WirelessPairingCardState extends State<_WirelessPairingCard> {
           defaultValue: '',
         ) ??
         '';
+    _connectPortCtrl.text = hive.getSetting<String>(
+          AppConstants.keyWirelessConnectPort,
+          defaultValue: '',
+        ) ??
+        '';
     if (_portCtrl.text.isNotEmpty && _codeCtrl.text.isNotEmpty) {
       _message = 'Pairing info saved.';
     }
@@ -556,21 +562,33 @@ class _WirelessPairingCardState extends State<_WirelessPairingCard> {
   void dispose() {
     _portCtrl.dispose();
     _codeCtrl.dispose();
+    _connectPortCtrl.dispose();
     super.dispose();
   }
 
-  Future<void> _save() async {
+  Future<void> _pair() async {
     final agent = _agent;
     if (agent == null) return;
     final error = await agent.saveWirelessPairing(
       port: _portCtrl.text,
       code: _codeCtrl.text,
     );
-    setState(() {
-      _message = error ??
-          'Saved. The pairing handshake is not built yet, so this does '
-              'not connect anything yet.';
-    });
+    if (error != null) {
+      setState(() => _message = error);
+      return;
+    }
+    final connectError =
+        await agent.saveWirelessConnectPort(_connectPortCtrl.text);
+    if (connectError != null) {
+      setState(() => _message = connectError);
+      return;
+    }
+    setState(() => _message = 'Pairing…');
+    final result = await agent.pairWireless(
+      port: _portCtrl.text,
+      code: _codeCtrl.text,
+    );
+    setState(() => _message = result);
   }
 
   Future<void> _clear() async {
@@ -580,6 +598,7 @@ class _WirelessPairingCardState extends State<_WirelessPairingCard> {
     setState(() {
       _portCtrl.clear();
       _codeCtrl.clear();
+      _connectPortCtrl.clear();
       _message = 'Pairing info cleared.';
     });
   }
@@ -593,10 +612,14 @@ class _WirelessPairingCardState extends State<_WirelessPairingCard> {
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
           child: Text(
-            'The chat model can check wireless debugging and run read-only '
-            'commands on this phone. To pair it later, enter the port + '
-            '6-digit code from Settings → Developer options → Wireless '
-            'debugging → Pair device with pairing code.',
+            'The chat model can check wireless debugging and run shell '
+            'commands on this phone. Open Settings → Developer options → '
+            'Wireless debugging → Pair device with pairing code, enter '
+            'the port + 6-digit code below, then tap Pair — the app '
+            'pairs with the phone itself, and shell commands then run '
+            'as the shell user. The connect port (the "IP address & '
+            'Port" on the same screen) is only needed if the app cannot '
+            'find it by itself.',
             style: t.caption,
           ),
         ),
@@ -625,13 +648,25 @@ class _WirelessPairingCardState extends State<_WirelessPairingCard> {
           ]),
         ),
         Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+          child: TextField(
+            controller: _connectPortCtrl,
+            style: t.mono.copyWith(fontSize: 13.5),
+            keyboardType: TextInputType.number,
+            decoration: appInputDecoration(
+              context,
+              hint: 'Connect port (optional)',
+            ),
+          ),
+        ),
+        Padding(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
           child: Row(children: [
             Expanded(
               child: PrimaryButton(
-                label: 'Save pairing info',
+                label: 'Pair now',
                 icon: Icons.password_rounded,
-                onPressed: _save,
+                onPressed: _pair,
               ),
             ),
             const SizedBox(width: 10),

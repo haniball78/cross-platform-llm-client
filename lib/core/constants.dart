@@ -14,6 +14,7 @@ class AppConstants {
   static const String keyChatToolsEnabled = 'chat_tools_enabled';
   static const String keyWirelessPairPort = 'wireless_pair_port';
   static const String keyWirelessPairCode = 'wireless_pair_code';
+  static const String keyWirelessConnectPort = 'wireless_connect_port';
   static const String keyCloudProvider =
       'cloud_provider'; // 'openai', 'anthropic', 'google', 'kimi'
   static const String keyOpenaiKey = 'openai_api_key';
