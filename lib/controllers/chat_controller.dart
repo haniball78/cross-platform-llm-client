@@ -297,6 +297,9 @@ class ChatController extends GetxController {
       case 'cerebras':
         modelName = s.cerebrasModel.value;
         break;
+      case 'mistral':
+        modelName = s.mistralModel.value;
+        break;
       case 'custom':
         modelName = s.customCloudModel.value;
         break;
@@ -315,7 +318,10 @@ class ChatController extends GetxController {
         model.contains('gemini') ||
         model.contains('pixtral') ||
         model.contains('llava') ||
-        model.contains('omni');
+        model.contains('omni') ||
+        model.contains('mistral-large') ||
+        model.contains('mistral-small') ||
+        model.contains('mistral-medium');
 
     if (!isVision) {
       showToast(
