@@ -37,6 +37,7 @@ object WirelessDebug {
      * port the system does not expose, so `adbTcpPort` is empty on a
      * wireless-only phone — that is expected, not an error.
      */
+    @JvmStatic
     fun status(context: Context): Map<String, Any> {
         val resolver = context.contentResolver
         val wirelessOn = try {
@@ -79,6 +80,7 @@ object WirelessDebug {
      * allowlist, any shell metacharacter, or a timeout comes back as an
      * "error: …" string. Never throws.
      */
+    @JvmStatic
     fun runShell(command: String): String {
         val argv = parseCommand(command) ?: return "error: command not allowed — " +
             "only read-only commands (getprop, settings get, pm list, " +
@@ -143,6 +145,7 @@ object WirelessDebug {
      * settings get/put, and am start. Anything not listed — rm,
      * reboot, su, keyguard changes — is refused by the allowlist.
      */
+    @JvmStatic
     fun parseAdbCommand(command: String): List<String>? {
         val trimmed = command.trim()
         if (trimmed.isEmpty() || trimmed.length > MAX_COMMAND_CHARS) return null
