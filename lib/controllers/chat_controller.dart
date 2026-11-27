@@ -291,6 +291,12 @@ class ChatController extends GetxController {
       case 'deepseek':
         modelName = s.deepSeekModel.value;
         break;
+      case 'groq':
+        modelName = s.groqModel.value;
+        break;
+      case 'cerebras':
+        modelName = s.cerebrasModel.value;
+        break;
       case 'custom':
         modelName = s.customCloudModel.value;
         break;
