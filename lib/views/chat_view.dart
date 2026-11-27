@@ -10,6 +10,7 @@ import '../controllers/chat_controller.dart';
 import '../controllers/settings_controller.dart';
 import '../controllers/model_controller.dart';
 import '../controllers/home_controller.dart';
+import '../services/agent_service.dart';
 import '../services/cluster_service.dart';
 import '../services/inference_service.dart';
 import '../services/local_image_service.dart';
@@ -321,6 +322,9 @@ class ChatView extends GetView<ChatController> {
             final text = isDark ? Colors.white : const Color(0xFF0B0B0C);
             final muted = Theme.of(ctx).hintColor;
             final warn = (usage?.pct ?? 0) >= 0.75;
+            final agent = Get.isRegistered<AgentService>()
+                ? Get.find<AgentService>()
+                : null;
             return Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -417,6 +421,48 @@ class ChatView extends GetView<ChatController> {
                       }),
                     ),
                   ],
+                ]),
+                const SizedBox(height: 24),
+                Text('Phone tools',
+                    style: GoogleFonts.inter(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: muted)),
+                const SizedBox(height: 6),
+                Text(
+                    'Let the chat model tap the screen and use wireless debugging.',
+                    style: GoogleFonts.inter(fontSize: 12.5, color: muted)),
+                const SizedBox(height: 8),
+                Row(children: [
+                  Expanded(
+                    child: Text('Phone tools',
+                        style: GoogleFonts.inter(
+                            fontSize: 14, color: text)),
+                  ),
+                  Switch(
+                    value: agent?.toolsEnabled.value ?? false,
+                    onChanged: agent == null
+                        ? null
+                        : (v) => agent.setToolsEnabled(v),
+                  ),
+                ]),
+                const SizedBox(height: 4),
+                Row(children: [
+                  for (final entry in const [
+                    ('both', 'Both'),
+                    ('local', 'Local'),
+                    ('cloud', 'Cloud'),
+                  ])
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: ChoiceChip(
+                        label: Text(entry.$2),
+                        selected: agent?.brainMode.value == entry.$1,
+                        onSelected: agent == null
+                            ? null
+                            : (_) => agent.setBrainMode(entry.$1),
+                      ),
+                    ),
                 ]),
               ],
             );
