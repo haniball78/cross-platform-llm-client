@@ -35,11 +35,3 @@ jobs:
         with:
           name: app-debug
           path: build/app/outputs/flutter-apk/app-debug.apk
-      - name: Attach APK to a dev pre-release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: dev-${{ github.sha }}
-          name: Dev build ${{ github.sha }}
-          prerelease: true
-          generate_release_notes: false
-          files: build/app/outputs/flutter-apk/app-debug.apk
