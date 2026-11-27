@@ -2,6 +2,9 @@ allprojects {
     repositories {
         google()
         mavenCentral()
+        // Kadb's transitive spake2 dependency is published on JitPack
+        // (com.github.flyfishxu.spake2-java:spake2) — same as DroidDeck.
+        maven { url = uri("https://jitpack.io") }
     }
 }
 

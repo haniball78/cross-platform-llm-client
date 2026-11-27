@@ -90,6 +90,14 @@ android {
 
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+    // The adb client (pairing + shell) is the Kadb library — the same
+    // one DroidDeck pairs with. No hand-written handshake lives here.
+    implementation("com.flyfishxu:kadb-android:1.2.1")
+    // Kadb.pair is a suspend function; runBlocking needs the coroutines
+    // runtime on the app's compile classpath (Kadb only brings it as an
+    // implementation dependency, so it is not visible here otherwise).
+    // Version matches the one Kadb 1.2.1 itself pins (1.11.0).
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
 }
 
 flutter {
