@@ -57,6 +57,15 @@ class CloudModelController extends GetxController {
       'deepseek-chat',
       'deepseek-reasoner',
     ],
+    'groq': [
+      'openai/gpt-oss-120b',
+      'openai/gpt-oss-20b',
+      'qwen/qwen3.8-27b',
+    ],
+    'cerebras': [
+      'gpt-oss-120b',
+      'qwen-3.8-27b',
+    ],
     'google': [
       'gemini-2.5-flash',
       'gemini-2.5-pro',
@@ -91,6 +100,18 @@ class CloudModelController extends GetxController {
       name: 'DeepSeek',
       description: 'OpenAI compatible V4 models',
       icon: Icons.psychology_alt_outlined,
+    ),
+    CloudProviderInfo(
+      id: 'groq',
+      name: 'Groq',
+      description: 'Ultra-fast inference · OpenAI compatible · free tier',
+      icon: Icons.bolt_outlined,
+    ),
+    CloudProviderInfo(
+      id: 'cerebras',
+      name: 'Cerebras',
+      description: 'Wafer-scale speed · OpenAI compatible · free trial',
+      icon: Icons.speed_outlined,
     ),
     CloudProviderInfo(
       id: 'google',
@@ -157,6 +178,10 @@ class CloudModelController extends GetxController {
         return _settings.openRouterModel.value;
       case 'deepseek':
         return _settings.deepSeekModel.value;
+      case 'groq':
+        return _settings.groqModel.value;
+      case 'cerebras':
+        return _settings.cerebrasModel.value;
       case 'google':
         return _settings.googleModel.value;
       case 'nvidia':
@@ -174,6 +199,10 @@ class CloudModelController extends GetxController {
         return _settings.openRouterKey.value;
       case 'deepseek':
         return _settings.deepSeekKey.value;
+      case 'groq':
+        return _settings.groqKey.value;
+      case 'cerebras':
+        return _settings.cerebrasKey.value;
       case 'google':
         return _settings.googleKey.value;
       case 'nvidia':
@@ -419,6 +448,16 @@ class CloudModelController extends GetxController {
       case 'deepseek':
         return http.get(
           Uri.parse('${AppConstants.deepSeekEndpoint}/models'),
+          headers: {'Authorization': 'Bearer ${apiKeyFor(provider)}'},
+        );
+      case 'groq':
+        return http.get(
+          Uri.parse('${AppConstants.groqEndpoint}/models'),
+          headers: {'Authorization': 'Bearer ${apiKeyFor(provider)}'},
+        );
+      case 'cerebras':
+        return http.get(
+          Uri.parse('${AppConstants.cerebrasEndpoint}/models'),
           headers: {'Authorization': 'Bearer ${apiKeyFor(provider)}'},
         );
       case 'google':
