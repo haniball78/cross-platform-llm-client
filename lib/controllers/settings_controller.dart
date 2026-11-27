@@ -31,6 +31,7 @@ class SettingsController extends GetxController {
   final deepSeekKey = ''.obs;
   final groqKey = ''.obs;
   final cerebrasKey = ''.obs;
+  final mistralKey = ''.obs;
   final customCloudName = 'Custom API'.obs;
   final customCloudBaseUrl = ''.obs;
   final customCloudKey = ''.obs;
@@ -46,6 +47,7 @@ class SettingsController extends GetxController {
   final deepSeekModel = 'deepseek-v4-flash'.obs;
   final groqModel = 'openai/gpt-oss-120b'.obs;
   final cerebrasModel = 'gpt-oss-120b'.obs;
+  final mistralModel = 'mistral-small-latest'.obs;
   final customCloudModel = ''.obs;
   final globalSystemPrompt = AppConstants.systemPrompt.obs;
   final nvidiaModels = <String>[].obs;
@@ -76,6 +78,7 @@ class SettingsController extends GetxController {
   final deepSeekKeyController = TextEditingController();
   final groqKeyController = TextEditingController();
   final cerebrasKeyController = TextEditingController();
+  final mistralKeyController = TextEditingController();
   final customCloudNameController = TextEditingController();
   final customCloudBaseUrlController = TextEditingController();
   final customCloudKeyController = TextEditingController();
@@ -95,6 +98,7 @@ class SettingsController extends GetxController {
   final deepSeekModelController = TextEditingController();
   final groqModelController = TextEditingController();
   final cerebrasModelController = TextEditingController();
+  final mistralModelController = TextEditingController();
   final customCloudModelController = TextEditingController();
 
   Timer? _apiKeyDebounceTimer;
@@ -128,6 +132,7 @@ class SettingsController extends GetxController {
     deepSeekKeyController.dispose();
     groqKeyController.dispose();
     cerebrasKeyController.dispose();
+    mistralKeyController.dispose();
     customCloudNameController.dispose();
     customCloudBaseUrlController.dispose();
     customCloudKeyController.dispose();
@@ -143,6 +148,7 @@ class SettingsController extends GetxController {
     deepSeekModelController.dispose();
     groqModelController.dispose();
     cerebrasModelController.dispose();
+    mistralModelController.dispose();
     customCloudModelController.dispose();
     _apiKeyDebounceTimer?.cancel();
     _modelDebounceTimer?.cancel();
@@ -168,6 +174,7 @@ class SettingsController extends GetxController {
     deepSeekKey.value = _hive.getSetting(AppConstants.keyDeepSeekKey) ?? '';
     groqKey.value = _hive.getSetting(AppConstants.keyGroqKey) ?? '';
     cerebrasKey.value = _hive.getSetting(AppConstants.keyCerebrasKey) ?? '';
+    mistralKey.value = _hive.getSetting(AppConstants.keyMistralKey) ?? '';
     customCloudName.value = _hive.getSetting(AppConstants.keyCustomCloudName,
             defaultValue: 'Custom API') ??
         'Custom API';
@@ -205,6 +212,9 @@ class SettingsController extends GetxController {
     cerebrasModel.value = _hive.getSetting(AppConstants.keyCerebrasModel,
             defaultValue: 'gpt-oss-120b') ??
         'gpt-oss-120b';
+    mistralModel.value = _hive.getSetting(AppConstants.keyMistralModel,
+            defaultValue: 'mistral-small-latest') ??
+        'mistral-small-latest';
     customCloudModel.value =
         _hive.getSetting(AppConstants.keyCustomCloudModel) ?? '';
     _loadCustomCloudProfiles();
@@ -271,6 +281,7 @@ class SettingsController extends GetxController {
     deepSeekKeyController.text = deepSeekKey.value;
     groqKeyController.text = groqKey.value;
     cerebrasKeyController.text = cerebrasKey.value;
+    mistralKeyController.text = mistralKey.value;
     customCloudNameController.text = customCloudName.value;
     customCloudBaseUrlController.text = customCloudBaseUrl.value;
     customCloudKeyController.text = customCloudKey.value;
@@ -292,6 +303,7 @@ class SettingsController extends GetxController {
     deepSeekModelController.text = deepSeekModel.value;
     groqModelController.text = groqModel.value;
     cerebrasModelController.text = cerebrasModel.value;
+    mistralModelController.text = mistralModel.value;
     customCloudModelController.text = customCloudModel.value;
   }
 
@@ -315,6 +327,8 @@ class SettingsController extends GetxController {
         return groqKeyController;
       case 'cerebras':
         return cerebrasKeyController;
+      case 'mistral':
+        return mistralKeyController;
       case 'custom':
         return customCloudKeyController;
       default:
@@ -342,6 +356,8 @@ class SettingsController extends GetxController {
         return groqModelController;
       case 'cerebras':
         return cerebrasModelController;
+      case 'mistral':
+        return mistralModelController;
       case 'custom':
         return customCloudModelController;
       default:
@@ -369,6 +385,8 @@ class SettingsController extends GetxController {
         return groqModel.value;
       case 'cerebras':
         return cerebrasModel.value;
+      case 'mistral':
+        return mistralModel.value;
       case 'custom':
         return customCloudModel.value;
       default:
@@ -440,6 +458,11 @@ class SettingsController extends GetxController {
         cerebrasKeyController.text = trimmed;
         await _hive.setSetting(AppConstants.keyCerebrasKey, trimmed);
         break;
+      case 'mistral':
+        mistralKey.value = trimmed;
+        mistralKeyController.text = trimmed;
+        await _hive.setSetting(AppConstants.keyMistralKey, trimmed);
+        break;
       case 'custom':
         customCloudKey.value = trimmed;
         customCloudKeyController.text = trimmed;
@@ -510,6 +533,11 @@ class SettingsController extends GetxController {
         cerebrasModel.value = model;
         cerebrasModelController.text = model;
         await _hive.setSetting(AppConstants.keyCerebrasModel, model);
+        break;
+      case 'mistral':
+        mistralModel.value = model;
+        mistralModelController.text = model;
+        await _hive.setSetting(AppConstants.keyMistralModel, model);
         break;
       case 'custom':
         customCloudModel.value = model;
