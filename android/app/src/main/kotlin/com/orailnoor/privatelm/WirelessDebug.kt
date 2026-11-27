@@ -80,9 +80,9 @@ object WirelessDebug {
      * "error: …" string. Never throws.
      */
     fun runShell(command: String): String {
-        val argv = parseCommand(command) ?: return "error: command not allowed — "
-            + "only read-only commands (getprop, settings get, pm list, "
-            + "dumpsys, logcat, ip, ps) may run, with no shell metacharacters"
+        val argv = parseCommand(command) ?: return "error: command not allowed — " +
+            "only read-only commands (getprop, settings get, pm list, " +
+            "dumpsys, logcat, ip, ps) may run, with no shell metacharacters"
         return try {
             val builder = ProcessBuilder(argv).redirectErrorStream(true)
             val process = builder.start()
