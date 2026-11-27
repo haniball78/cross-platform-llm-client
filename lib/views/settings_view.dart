@@ -12,6 +12,8 @@ import '../services/device_info_service.dart';
 import '../services/device_info_native.dart' as platform_info;
 import '../ffi/sd_ffi_bindings.dart';
 import '../services/cluster_service.dart';
+import '../services/overlay_service.dart';
+import 'package:llama_flutter_android/llama_flutter_android.dart';
 import 'cluster_view.dart';
 import 'log_view.dart';
 import '../core/haptics.dart';
@@ -126,6 +128,10 @@ class SettingsView extends GetView<SettingsController> {
                   chevron: true,
                   onTap: () => Get.to(() => const ClusterView()),
                 ),
+            ]),
+            const SectionHeader('Permissions & background'),
+            AppGroup(dividerIndent: 60, children: [
+              _buildPermissionsGroup(context),
             ]),
             const SectionHeader('About'),
             AppGroup(dividerIndent: 60, children: [
@@ -869,6 +875,114 @@ class SettingsView extends GetView<SettingsController> {
                 style: t.small.copyWith(color: t.orange)),
           ],
         ]),
+      ),
+    ]);
+  }
+
+
+  /// Permissions & background: overlay bubble, accessibility, battery
+  /// exemption and the background service. The section is a plain list of
+  /// rows; every action opens a system screen — Android never lets an app
+  /// grant these to itself.
+  Widget _buildPermissionsGroup(BuildContext context) {
+    final t = AppTokens.of(context);
+    if (!Get.isRegistered<OverlayService>()) {
+      return AppRow(
+        icon: Icons.shield_outlined,
+        title: 'Permissions & background',
+        subtitle: 'Unavailable in this build',
+      );
+    }
+    final overlay = Get.find<OverlayService>();
+    return Column(children: [
+      AppRow(
+        icon: Icons.layers_outlined,
+        title: 'Draw over other apps',
+        subtitle: overlay.canDrawOverlays.value
+            ? 'Granted — the floating bubble can be shown'
+            : 'Needed for the floating bubble',
+        trailing: Text(
+            overlay.canDrawOverlays.value ? 'Granted' : 'Not granted',
+            style: t.caption.copyWith(fontSize: 14)),
+        chevron: true,
+        onTap: () async {
+          await overlay.requestOverlayPermission();
+          if (!overlay.canDrawOverlays.value && context.mounted) {
+            showToast('Overlay not granted',
+                'Allow "Display over other apps" for PrivateLM, then try again.',
+                tone: ToastTone.warning);
+          }
+        },
+      ),
+      AppRow(
+        icon: Icons.bubble_chart_outlined,
+        title: 'Floating bubble',
+        subtitle: 'Tap the bubble to open PrivateLM, long-press to hide it',
+        trailing: Switch(
+          value: overlay.isBubbleRunning.value,
+          onChanged: (on) async {
+            try {
+              if (on) {
+                await overlay.startBubble();
+              } else {
+                await overlay.stopBubble();
+              }
+            } catch (e) {
+              if (context.mounted) {
+                showToast('Bubble needs permission',
+                    'Grant "Draw over other apps" first, then turn the bubble on.',
+                    tone: ToastTone.warning);
+              }
+            }
+          },
+        ),
+        onTap: () async {
+          try {
+            if (overlay.isBubbleRunning.value) {
+              await overlay.stopBubble();
+            } else {
+              await overlay.startBubble();
+            }
+          } catch (_) {
+            await overlay.requestOverlayPermission();
+          }
+        },
+      ),
+      AppRow(
+        icon: Icons.accessibility_new_rounded,
+        title: 'Accessibility',
+        subtitle: 'Enable PrivateLM in system Accessibility settings',
+        chevron: true,
+        onTap: () => overlay.openAccessibilitySettings(),
+      ),
+      AppRow(
+        icon: Icons.battery_charging_full_rounded,
+        title: 'Battery unrestricted',
+        subtitle:
+            'Stops Samsung moving PrivateLM to slow cores in the background',
+        chevron: true,
+        onTap: () async {
+          try {
+            await LlamaCluster.requestBatteryUnrestricted();
+            if (context.mounted) {
+              showToast('Battery', 'Battery exemption requested.',
+                  tone: ToastTone.success);
+            }
+          } catch (_) {
+            if (context.mounted) {
+              showToast('Battery',
+                  'Could not open the battery settings. Allow it by hand in system Settings.',
+                  tone: ToastTone.warning);
+            }
+          }
+        },
+      ),
+      AppRow(
+        icon: Icons.play_circle_outline_rounded,
+        title: 'Background service',
+        subtitle:
+            'Keeps the model server and cluster worker running in the background',
+        trailing: AppTag('On', color: t.green),
       ),
     ]);
   }
