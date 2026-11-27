@@ -33,6 +33,8 @@ class MainActivity : FlutterActivity() {
     private val mainHandler = Handler(Looper.getMainLooper())
 
     private var importChannel: MethodChannel? = null
+    private val overlayChannelName = "com.orailnoor.privatelm/overlay"
+    private var overlayChannel: MethodChannel? = null
     private var pendingImportResult: MethodChannel.Result? = null
     private var pendingModelsDir: String? = null
     private val monitoredInAppDownloads = ConcurrentHashMap.newKeySet<Long>()
@@ -219,6 +221,57 @@ class MainActivity : FlutterActivity() {
                 }
                 "restartApp" -> {
                     restartApp()
+                    result.success(null)
+                }
+                else -> result.notImplemented()
+            }
+        }
+
+        overlayChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, overlayChannelName)
+        overlayChannel?.setMethodCallHandler { call, result ->
+            when (call.method) {
+                "canDrawOverlays" -> result.success(Settings.canDrawOverlays(this))
+                "requestOverlayPermission" -> {
+                    if (Settings.canDrawOverlays(this)) {
+                        result.success(true)
+                        return@setMethodCallHandler
+                    }
+                    val intent = Intent(
+                        Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                        Uri.parse("package:$packageName")
+                    )
+                    startActivity(intent)
+                    result.success(true)
+                }
+                "openAccessibilitySettings" -> {
+                    startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                    result.success(true)
+                }
+                "startBubble" -> {
+                    if (!Settings.canDrawOverlays(this)) {
+                        result.error(
+                            "NO_OVERLAY_PERMISSION",
+                            "Draw over other apps is not granted.",
+                            null
+                        )
+                        return@setMethodCallHandler
+                    }
+                    val intent = Intent(this, BubbleService::class.java)
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        startForegroundService(intent)
+                    } else {
+                        startService(intent)
+                    }
+                    result.success(true)
+                }
+                "stopBubble" -> {
+                    stopService(Intent(this, BubbleService::class.java))
+                    result.success(true)
+                }
+                "isBubbleRunning" -> result.success(BubbleService.isRunning)
+                "setServerRunning" -> {
+                    BubbleService.serverRunning =
+                        call.argument<Boolean>("running") ?: false
                     result.success(null)
                 }
                 else -> result.notImplemented()
