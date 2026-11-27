@@ -6,7 +6,10 @@ import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 
 import '../controllers/server_controller.dart';
+import '../core/constants.dart';
+import '../services/agent_service.dart';
 import '../services/cluster_service.dart';
+import '../services/hive_service.dart';
 import '../core/ui.dart';
 import '../core/haptics.dart';
 
@@ -163,6 +166,8 @@ class ServerView extends GetView<ServerController> {
                   '3. On the PC: adb connect ${_wifiIp ?? '<wifi-ip>'}:<port>\n'
                   '4. Use the PC URL above with your API key',
             ),
+            const SizedBox(height: 12),
+            _WirelessPairingCard(),
 
             // ── Endpoints ──
             if (isRunning) ...[
@@ -502,5 +507,147 @@ class _CodeBlock extends StatelessWidget {
         ),
       ]),
     );
+  }
+}
+
+// ── Wireless debugging pairing (phone-only) ─────────────────────────
+
+/// In-app wireless debugging: the pairing port + 6-digit code from
+/// Developer options → Wireless debugging. The app stores them for the
+/// chat model's wireless tools. Honest limit, shown in the UI: the
+/// pairing handshake is not implemented in this build yet, so saving
+/// the code does not connect anything yet.
+class _WirelessPairingCard extends StatefulWidget {
+  const _WirelessPairingCard();
+
+  @override
+  State<_WirelessPairingCard> createState() => _WirelessPairingCardState();
+}
+
+class _WirelessPairingCardState extends State<_WirelessPairingCard> {
+  final _portCtrl = TextEditingController();
+  final _codeCtrl = TextEditingController();
+  String? _message;
+
+  AgentService? get _agent =>
+      Get.isRegistered<AgentService>() ? Get.find<AgentService>() : null;
+
+  @override
+  void initState() {
+    super.initState();
+    if (!Get.isRegistered<HiveService>()) return;
+    final hive = Get.find<HiveService>();
+    _portCtrl.text = hive.getSetting<String>(
+          AppConstants.keyWirelessPairPort,
+          defaultValue: '',
+        ) ??
+        '';
+    _codeCtrl.text = hive.getSetting<String>(
+          AppConstants.keyWirelessPairCode,
+          defaultValue: '',
+        ) ??
+        '';
+    if (_portCtrl.text.isNotEmpty && _codeCtrl.text.isNotEmpty) {
+      _message = 'Pairing info saved.';
+    }
+  }
+
+  @override
+  void dispose() {
+    _portCtrl.dispose();
+    _codeCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    final agent = _agent;
+    if (agent == null) return;
+    final error = await agent.saveWirelessPairing(
+      port: _portCtrl.text,
+      code: _codeCtrl.text,
+    );
+    setState(() {
+      _message = error ??
+          'Saved. The pairing handshake is not built yet, so this does '
+              'not connect anything yet.';
+    });
+  }
+
+  Future<void> _clear() async {
+    final agent = _agent;
+    if (agent == null) return;
+    await agent.clearWirelessPairing();
+    setState(() {
+      _portCtrl.clear();
+      _codeCtrl.clear();
+      _message = 'Pairing info cleared.';
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = AppTokens.of(context);
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      const SectionHeader('Wireless debugging on this phone'),
+      AppGroup(children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+          child: Text(
+            'The chat model can check wireless debugging and run read-only '
+            'commands on this phone. To pair it later, enter the port + '
+            '6-digit code from Settings → Developer options → Wireless '
+            'debugging → Pair device with pairing code.',
+            style: t.caption,
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+          child: Row(children: [
+            Expanded(
+              child: TextField(
+                controller: _portCtrl,
+                style: t.mono.copyWith(fontSize: 13.5),
+                keyboardType: TextInputType.number,
+                decoration:
+                    appInputDecoration(context, hint: 'Pairing port'),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: TextField(
+                controller: _codeCtrl,
+                style: t.mono.copyWith(fontSize: 13.5),
+                keyboardType: TextInputType.number,
+                decoration:
+                    appInputDecoration(context, hint: '6-digit code'),
+              ),
+            ),
+          ]),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+          child: Row(children: [
+            Expanded(
+              child: PrimaryButton(
+                label: 'Save pairing info',
+                icon: Icons.password_rounded,
+                onPressed: _save,
+              ),
+            ),
+            const SizedBox(width: 10),
+            TonalButton.destructive(
+              context,
+              label: 'Clear',
+              onTap: _clear,
+            ),
+          ]),
+        ),
+        if (_message != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            child: Text(_message!, style: t.caption),
+          ),
+      ]),
+    ]);
   }
 }

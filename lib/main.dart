@@ -17,6 +17,7 @@ import 'core/routes.dart';
 import 'services/hive_service.dart';
 import 'services/inference_service.dart';
 import 'services/cluster_service.dart';
+import 'services/agent_service.dart';
 import 'services/cloud_service.dart';
 import 'services/download_service.dart';
 import 'services/overlay_service.dart';
@@ -92,6 +93,7 @@ void main() {
     Get.put(CloudService());
     Get.put(DownloadService());
     Get.put(OverlayService());
+    Get.put(AgentService());
     if (UpdateService.isSupported) Get.put(UpdateService(), permanent: true);
     Get.put(LocalImageService());
     final crashReporting = await Get.putAsync(() => CrashReportingService().init().timeout(

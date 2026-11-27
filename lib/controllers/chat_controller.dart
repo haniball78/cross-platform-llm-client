@@ -22,6 +22,7 @@ import '../services/hive_service.dart';
 import '../services/inference_service.dart';
 import '../services/cloud_service.dart';
 import '../services/local_image_service.dart';
+import '../services/agent_service.dart';
 import '../services/app_log_service.dart';
 import '../services/image_generation_notification_service.dart';
 import '../services/document_extractor_service.dart';
@@ -702,7 +703,34 @@ class ChatController extends GetxController {
               })
           .toList();
 
-      if (inferenceMode == 'local') {
+      // Phone tools: when enabled, and there is no image/audio attachment
+      // and no local image generation, let the chat model drive the phone
+      // (accessibility + wireless debugging) for up to 20 rounds. Each
+      // tool use is saved as a visible 'used tool …' message.
+      final toolsAvailable = Get.isRegistered<AgentService>() &&
+          Get.find<AgentService>().toolsEnabled.value &&
+          imagePath == null &&
+          fileType != 'audio' &&
+          !(inferenceMode == 'local' &&
+              Get.isRegistered<LocalImageService>() &&
+              Get.find<LocalImageService>().isModelLoaded.value);
+      if (toolsAvailable) {
+        final loop = await Get.find<AgentService>().runToolLoop(
+          history: history,
+          lastUserText: effectiveText,
+          systemPrompt: _effectiveSystemPrompt,
+          onToolUse: (line) {
+            if (generationId != _generationSerial) return;
+            _saveAssistantMessage(content: line);
+            _scrollToBottom();
+          },
+          shouldStop: () => generationId != _generationSerial,
+        );
+        rawResponse = loop.finalText ??
+            (loop.stopped
+                ? 'Stopped.'
+                : 'The model stopped without a final answer.');
+      } else if (inferenceMode == 'local') {
         final localImage = Get.find<LocalImageService>();
 
         if (localImage.isModelLoaded.value) {
