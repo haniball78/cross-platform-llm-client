@@ -66,6 +66,12 @@ class CloudModelController extends GetxController {
       'gpt-oss-120b',
       'qwen-3.8-27b',
     ],
+    'mistral': [
+      'mistral-small-latest',
+      'mistral-large-latest',
+      'mistral-medium-latest',
+      'codestral-latest',
+    ],
     'google': [
       'gemini-2.5-flash',
       'gemini-2.5-pro',
@@ -112,6 +118,12 @@ class CloudModelController extends GetxController {
       name: 'Cerebras',
       description: 'Wafer-scale speed · OpenAI compatible · free trial',
       icon: Icons.speed_outlined,
+    ),
+    CloudProviderInfo(
+      id: 'mistral',
+      name: 'Mistral',
+      description: 'European open-weight models · OpenAI compatible · pay-as-you-go',
+      icon: Icons.public_outlined,
     ),
     CloudProviderInfo(
       id: 'google',
@@ -182,6 +194,8 @@ class CloudModelController extends GetxController {
         return _settings.groqModel.value;
       case 'cerebras':
         return _settings.cerebrasModel.value;
+      case 'mistral':
+        return _settings.mistralModel.value;
       case 'google':
         return _settings.googleModel.value;
       case 'nvidia':
@@ -203,6 +217,8 @@ class CloudModelController extends GetxController {
         return _settings.groqKey.value;
       case 'cerebras':
         return _settings.cerebrasKey.value;
+      case 'mistral':
+        return _settings.mistralKey.value;
       case 'google':
         return _settings.googleKey.value;
       case 'nvidia':
@@ -458,6 +474,11 @@ class CloudModelController extends GetxController {
       case 'cerebras':
         return http.get(
           Uri.parse('${AppConstants.cerebrasEndpoint}/models'),
+          headers: {'Authorization': 'Bearer ${apiKeyFor(provider)}'},
+        );
+      case 'mistral':
+        return http.get(
+          Uri.parse('${AppConstants.mistralEndpoint}/models'),
           headers: {'Authorization': 'Bearer ${apiKeyFor(provider)}'},
         );
       case 'google':

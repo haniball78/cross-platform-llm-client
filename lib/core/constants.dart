@@ -21,6 +21,7 @@ class AppConstants {
   static const String keyDeepSeekKey = 'deepseek_api_key';
   static const String keyGroqKey = 'groq_api_key';
   static const String keyCerebrasKey = 'cerebras_api_key';
+  static const String keyMistralKey = 'mistral_api_key';
   static const String keyCustomCloudName = 'custom_cloud_name';
   static const String keyCustomCloudBaseUrl = 'custom_cloud_base_url';
   static const String keyCustomCloudKey = 'custom_cloud_api_key';
@@ -36,6 +37,7 @@ class AppConstants {
   static const String keyDeepSeekModel = 'deepseek_model';
   static const String keyGroqModel = 'groq_model';
   static const String keyCerebrasModel = 'cerebras_model';
+  static const String keyMistralModel = 'mistral_model';
   static const String keyCustomCloudModel = 'custom_cloud_model';
   static const String keyGlobalSystemPrompt = 'global_system_prompt';
   static const String keyLocalModelPath = 'local_model_path';
@@ -410,4 +412,5 @@ class AppConstants {
   static const String deepSeekEndpoint = 'https://api.deepseek.com';
   static const String groqEndpoint = 'https://api.groq.com/openai/v1';
   static const String cerebrasEndpoint = 'https://api.cerebras.ai/v1';
+  static const String mistralEndpoint = 'https://api.mistral.ai/v1';
 }
