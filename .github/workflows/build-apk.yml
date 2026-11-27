@@ -18,6 +18,14 @@ jobs:
         with:
           flutter-version: '3.44.9'
           channel: stable
+      - name: Install latest Vulkan SDK (new glslc for llama.cpp shaders)
+        run: |
+          curl -sL "https://sdk.lunarg.com/sdk/download/latest/linux/vulkan_sdk.tar.xz" | sudo tar xJ -C /opt
+          GLSLC=$(find /opt -name glslc -type f 2>/dev/null | head -1)
+          echo "Found glslc: $GLSLC"
+          "$GLSLC" --version
+          echo "$(dirname "$GLSLC")" >> "$GITHUB_PATH"
+          echo "VULKAN_SDK=$(dirname "$(dirname "$GLSLC")")" >> "$GITHUB_ENV"
       - run: flutter pub get
       - run: flutter build apk --debug
       - name: Upload APK artifact
