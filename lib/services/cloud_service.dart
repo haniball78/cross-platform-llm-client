@@ -30,6 +30,10 @@ class CloudService extends GetxService {
         return _hive.getSetting(AppConstants.keyOpenRouterKey) ?? '';
       case 'deepseek':
         return _hive.getSetting(AppConstants.keyDeepSeekKey) ?? '';
+      case 'groq':
+        return _hive.getSetting(AppConstants.keyGroqKey) ?? '';
+      case 'cerebras':
+        return _hive.getSetting(AppConstants.keyCerebrasKey) ?? '';
       case 'custom':
         return _hive.getSetting(AppConstants.keyCustomCloudKey) ?? '';
       default:
@@ -59,6 +63,12 @@ class CloudService extends GetxService {
       case 'deepseek':
         return _hive.getSetting(AppConstants.keyDeepSeekModel) ??
             'deepseek-v4-flash';
+      case 'groq':
+        return _hive.getSetting(AppConstants.keyGroqModel) ??
+            'openai/gpt-oss-120b';
+      case 'cerebras':
+        return _hive.getSetting(AppConstants.keyCerebrasModel) ??
+            'gpt-oss-120b';
       case 'custom':
         return _hive.getSetting(AppConstants.keyCustomCloudModel) ?? '';
       default:
@@ -144,6 +154,12 @@ class CloudService extends GetxService {
         case 'deepseek':
           return await _sendDeepSeek(
               messages, imageBase64, temperature, maxTokens);
+        case 'groq':
+          return await _sendGroq(
+              messages, imageBase64, temperature, maxTokens);
+        case 'cerebras':
+          return await _sendCerebras(
+              messages, imageBase64, temperature, maxTokens);
         case 'custom':
           return await _sendCustomOpenAICompatible(
               messages, imageBase64, temperature, maxTokens);
@@ -166,6 +182,8 @@ class CloudService extends GetxService {
       _provider == 'nvidia' ||
       _provider == 'openrouter' ||
       _provider == 'deepseek' ||
+      _provider == 'groq' ||
+      _provider == 'cerebras' ||
       _provider == 'custom' ||
       _provider == 'kimi';
 
@@ -177,6 +195,10 @@ class CloudService extends GetxService {
         return '${AppConstants.openRouterEndpoint}/chat/completions';
       case 'deepseek':
         return '${AppConstants.deepSeekEndpoint}/chat/completions';
+      case 'groq':
+        return '${AppConstants.groqEndpoint}/chat/completions';
+      case 'cerebras':
+        return '${AppConstants.cerebrasEndpoint}/chat/completions';
       case 'custom':
         final baseUrl =
             (_hive.getSetting(AppConstants.keyCustomCloudBaseUrl) ?? '')
@@ -198,6 +220,10 @@ class CloudService extends GetxService {
         return 'OpenRouter';
       case 'deepseek':
         return 'DeepSeek';
+      case 'groq':
+        return 'Groq';
+      case 'cerebras':
+        return 'Cerebras';
       case 'custom':
         return _hive.getSetting(AppConstants.keyCustomCloudName) ??
             'Custom API';
@@ -512,6 +538,42 @@ class CloudService extends GetxService {
     return _sendOpenAICompatible(
       endpoint: '${AppConstants.deepSeekEndpoint}/chat/completions',
       providerLabel: 'DeepSeek',
+      messages: messages,
+      imageBase64: imageBase64,
+      temperature: temperature,
+      maxTokens: maxTokens,
+    );
+  }
+
+  // ─── Groq (OpenAI-compatible, free tier) ─────
+
+  Future<String> _sendGroq(
+    List<Map<String, String>> messages,
+    String? imageBase64,
+    double? temperature,
+    int? maxTokens,
+  ) async {
+    return _sendOpenAICompatible(
+      endpoint: '${AppConstants.groqEndpoint}/chat/completions',
+      providerLabel: 'Groq',
+      messages: messages,
+      imageBase64: imageBase64,
+      temperature: temperature,
+      maxTokens: maxTokens,
+    );
+  }
+
+  // ─── Cerebras (OpenAI-compatible, free trial) ─
+
+  Future<String> _sendCerebras(
+    List<Map<String, String>> messages,
+    String? imageBase64,
+    double? temperature,
+    int? maxTokens,
+  ) async {
+    return _sendOpenAICompatible(
+      endpoint: '${AppConstants.cerebrasEndpoint}/chat/completions',
+      providerLabel: 'Cerebras',
       messages: messages,
       imageBase64: imageBase64,
       temperature: temperature,
