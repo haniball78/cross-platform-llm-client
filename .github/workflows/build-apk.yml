@@ -42,6 +42,9 @@ jobs:
       - name: Set up release signing
         run: |
           echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/app/upload-keystore.jks
+          KEYSTORE_BYTES=$(wc -c < android/app/upload-keystore.jks)
+          echo "keystore bytes: $KEYSTORE_BYTES (expected 2574)"
+          test "$KEYSTORE_BYTES" = "2574" || { echo "keystore decoded size mismatch — the ANDROID_KEYSTORE_BASE64 secret is corrupted, aborting before the build"; exit 1; }
           cat > android/key.properties <<EOF
           storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           keyPassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
