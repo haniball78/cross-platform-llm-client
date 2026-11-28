@@ -22,6 +22,7 @@ jobs:
           printf '%s' "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" > /tmp/ks.b64
           echo "secret chars: $(wc -c < /tmp/ks.b64) (expected 3432)"
           echo "secret sha256: $(sha256sum /tmp/ks.b64 | cut -d' ' -f1) (expected e71b2421e8fd8aa5d36fc009c78ca80aafb26419a9136a67b948ea859fd4d652)"
+          python3 -c "import hashlib; d=open('/tmp/ks.b64','rb').read(); [print(f'chunk {i}: {hashlib.sha256(d[i*429:(i+1)*429]).hexdigest()}') for i in range(8)]"
           base64 -d /tmp/ks.b64 > /tmp/upload-keystore.jks
           echo "decoded bytes: $(wc -c < /tmp/upload-keystore.jks) (expected 2574)"
           echo "decoded sha256: $(sha256sum /tmp/upload-keystore.jks | cut -d' ' -f1) (expected 294d4d620f2ad44a085c182dc741b2272e3079329b4855adbdcf2ebc81ba66ed)"
