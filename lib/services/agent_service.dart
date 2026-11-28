@@ -475,7 +475,7 @@ class AgentService extends GetxService {
       '- ADB port: ${port.isEmpty ? 'not exposed by the system (wireless debugging uses a random port — enter it in the Server view)' : port}',
     );
     buffer.writeln(
-      '- Paired: ${paired ? 'yes (device GUID $guid) — wirelessShell runs as the shell user' : 'no — wirelessShell runs a read-only app shell until paired'}',
+      '- Paired: ${paired ? 'yes${guid.isNotEmpty ? ' (device GUID $guid)' : ''} — wirelessShell runs as the shell user' : 'no — wirelessShell runs a read-only app shell until paired'}',
     );
     buffer.writeln('- Pairing: ${wirelessPairingSummary()}');
     return buffer.toString().trim();

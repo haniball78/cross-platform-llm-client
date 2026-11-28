@@ -42,6 +42,12 @@ android {
             // (Pixel 8); the loader never picks them, so don't ship them.
             excludes += setOf("**/libggml-cpu-android_armv9*.so")
         }
+        resources {
+            // Kadb brings Bouncy Castle (bcpkix/bcutil/bcprov 1.79) and
+            // jspecify, which all ship META-INF/versions/9/OSGI-INF/MANIFEST.MF
+            // — :app:mergeDebugJavaResource fails on the duplicate path.
+            excludes += "META-INF/versions/9/OSGI-INF/MANIFEST.MF"
+        }
     }
 
     compileOptions {
