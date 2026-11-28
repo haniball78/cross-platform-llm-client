@@ -19,7 +19,13 @@ jobs:
           java-version: '17'
       - name: Verify release keystore secret
         run: |
-          printf '%s' "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" > /tmp/ks.b64
+          # The stored ANDROID_KEYSTORE_BASE64 arrived with its middle
+          # chunks (4-6) altered — chunks 0-3 and 7 verified identical to
+          # the local file by hash. Reassemble from the good head/tail
+          # plus the three part secrets, then verify the whole value.
+          S="${{ secrets.ANDROID_KEYSTORE_BASE64 }}"
+          FULL="${S:0:1716}${{ secrets.KS_B64_P4 }}${{ secrets.KS_B64_P5 }}${{ secrets.KS_B64_P6 }}${S:3003}"
+          printf '%s' "$FULL" > /tmp/ks.b64
           echo "secret chars: $(wc -c < /tmp/ks.b64) (expected 3432)"
           echo "secret sha256: $(sha256sum /tmp/ks.b64 | cut -d' ' -f1) (expected e71b2421e8fd8aa5d36fc009c78ca80aafb26419a9136a67b948ea859fd4d652)"
           python3 -c "import hashlib; d=open('/tmp/ks.b64','rb').read(); [print(f'chunk {i}: {hashlib.sha256(d[i*429:(i+1)*429]).hexdigest()}') for i in range(8)]"
@@ -63,7 +69,9 @@ jobs:
       # fresh on every run and never committed.
       - name: Set up release signing
         run: |
-          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/app/upload-keystore.jks
+          S="${{ secrets.ANDROID_KEYSTORE_BASE64 }}"
+          FULL="${S:0:1716}${{ secrets.KS_B64_P4 }}${{ secrets.KS_B64_P5 }}${{ secrets.KS_B64_P6 }}${S:3003}"
+          printf '%s' "$FULL" | base64 -d > android/app/upload-keystore.jks
           KEYSTORE_BYTES=$(wc -c < android/app/upload-keystore.jks)
           echo "keystore bytes: $KEYSTORE_BYTES (expected 2574)"
           test "$KEYSTORE_BYTES" = "2574" || { echo "keystore decoded size mismatch — the ANDROID_KEYSTORE_BASE64 secret is corrupted, aborting before the build"; exit 1; }
